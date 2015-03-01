@@ -96,10 +96,13 @@ static CGFloat const ATLButtonHeight = 28.0f;
     CGRect leftButtonFrame = self.leftAccessoryButton.frame;
     CGRect rightButtonFrame = self.rightAccessoryButton.frame;
     CGRect textViewFrame = self.textInputView.frame;
-
-    leftButtonFrame.size.width = ATLLeftAccessoryButtonWidth;
-    leftButtonFrame.size.height = ATLButtonHeight;
-    leftButtonFrame.origin.x = ATLLeftButtonHorizontalMargin;
+    
+    //only to calculate when leftAccessroyButton is available
+    if(self.leftAccessoryButton){
+        leftButtonFrame.size.width = ATLLeftAccessoryButtonWidth;
+        leftButtonFrame.size.height = ATLButtonHeight;
+        leftButtonFrame.origin.x = ATLLeftButtonHorizontalMargin;
+    }
 
     rightButtonFrame.size.width = ATLRightAccessoryButtonWidth;
     rightButtonFrame.size.height = ATLButtonHeight;
@@ -116,9 +119,12 @@ static CGFloat const ATLButtonHeight = 28.0f;
     frame.size.height = CGRectGetHeight(textViewFrame) + ATLVerticalMargin * 2;
     frame.origin.y -= frame.size.height - CGRectGetHeight(self.frame);
  
+    //check if leftAccessroyButton is available.
+    CGRect rectToCalculateY = (self.leftAccessoryButton != nil) ? leftButtonFrame : rightButtonFrame;
+    
     // Only calculate button centerY once to anchor it to bottom of bar.
     if (!self.buttonCenterY) {
-        self.buttonCenterY = (CGRectGetHeight(frame) - CGRectGetHeight(leftButtonFrame)) / 2;
+        self.buttonCenterY = (CGRectGetHeight(frame) - CGRectGetHeight(rectToCalculateY)) / 2;
     }
     leftButtonFrame.origin.y = frame.size.height - leftButtonFrame.size.height - self.buttonCenterY;
     rightButtonFrame.origin.y = frame.size.height - rightButtonFrame.size.height - self.buttonCenterY;
