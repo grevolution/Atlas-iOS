@@ -36,8 +36,7 @@
 static CGFloat const ATLTypingIndicatorHeight = 20;
 static CGFloat const ATLMaxScrollDistanceFromBottom = 150;
 
-- (id)init
-{
+- (id)init {
     self = [super init];
     if (self) {
         [self baseCommonInit];
@@ -45,8 +44,7 @@ static CGFloat const ATLMaxScrollDistanceFromBottom = 150;
     return self;
 }
 
-- (id)initWithCoder:(NSCoder *)decoder
-{
+- (id)initWithCoder:(NSCoder *)decoder {
     self = [super initWithCoder:decoder];
     if (self) {
         [self baseCommonInit];
@@ -54,36 +52,33 @@ static CGFloat const ATLMaxScrollDistanceFromBottom = 150;
     return self;
 }
 
-- (void)baseCommonInit
-{
+- (void)baseCommonInit {
     _displaysAddressBar = NO;
     _typingParticipantIDs = [NSMutableArray new];
     _firstAppearance = YES;
-    _displaysAddressBar = YES;
+    //    _displaysAddressBar = YES;
 }
 
-- (void)loadView
-{
+- (void)loadView {
     self.view = [ATLConversationView new];
 }
 
-- (void)viewDidLoad
-{
+- (void)viewDidLoad {
     [super viewDidLoad];
-    
+
     // Add message input tool bar
     self.messageInputToolbar = [ATLMessageInputToolbar new];
     // An apparent system bug causes a view controller to not be deallocated
     // if the view controller's own inputAccessoryView property is used.
     self.view.inputAccessoryView = self.messageInputToolbar;
-    
+
     // Add typing indicator
     self.typingIndicatorController = [[ATLTypingIndicatorViewController alloc] init];
     [self addChildViewController:self.typingIndicatorController];
     [self.view addSubview:self.typingIndicatorController.view];
     [self.typingIndicatorController didMoveToParentViewController:self];
     [self configureTypingIndicatorLayoutConstraints];
-    
+
     // Add address bar if needed
     if (self.displaysAddressBar) {
         self.addressBarController = [[ATLAddressBarViewController alloc] init];
@@ -95,8 +90,7 @@ static CGFloat const ATLMaxScrollDistanceFromBottom = 150;
     [self atl_baseRegisterForNotifications];
 }
 
-- (void)viewWillAppear:(BOOL)animated
-{
+- (void)viewWillAppear:(BOOL)animated {
     [super viewWillAppear:animated];
 
     // Workaround for a modal dismissal causing the message toolbar to remain offscreen on iOS 8.
@@ -109,8 +103,7 @@ static CGFloat const ATLMaxScrollDistanceFromBottom = 150;
     [self updateBottomCollectionViewInset];
 }
 
-- (void)viewDidLayoutSubviews
-{
+- (void)viewDidLayoutSubviews {
     [super viewDidLayoutSubviews];
 
     // To get the toolbar to slide onscreen with the view controller's content, we have to make the view the
@@ -118,20 +111,19 @@ static CGFloat const ATLMaxScrollDistanceFromBottom = 150;
     if (!self.presentedViewController && self.navigationController && !self.view.inputAccessoryView.superview) {
         [self.view becomeFirstResponder];
     }
-    
+
     if (self.isFirstAppearance) {
         self.firstAppearance = NO;
-        // We use the content size of the actual collection view when calculating the ammount to scroll. Hence, we layout the collection view before scrolling to the bottom.
+        // We use the content size of the actual collection view when calculating the ammount to scroll. Hence, we
+        // layout the collection view before scrolling to the bottom.
         [self.view layoutIfNeeded];
         [self scrollToBottomAnimated:NO];
     }
 }
 
-
-- (void)viewWillDisappear:(BOOL)animated
-{
+- (void)viewWillDisappear:(BOOL)animated {
     [super viewWillDisappear:animated];
-    
+
     // Workaround for view's content flashing onscreen after pop animation concludes on iOS 8.
     BOOL isPopping = ![self.navigationController.viewControllers containsObject:self];
     if (isPopping) {
@@ -139,68 +131,63 @@ static CGFloat const ATLMaxScrollDistanceFromBottom = 150;
     }
 }
 
-- (void)dealloc
-{
+- (void)dealloc {
     [[NSNotificationCenter defaultCenter] removeObserver:self];
 }
 
-#pragma mark - Public Setters 
+#pragma mark - Public Setters
 
-- (void)setCollectionView:(UICollectionView *)collectionView
-{
+- (void)setCollectionView:(UICollectionView *)collectionView {
     _collectionView = collectionView;
     _collectionView.translatesAutoresizingMaskIntoConstraints = NO;
     [self.view addSubview:self.collectionView];
     [self configureCollectionViewLayoutConstraints];
 }
 
-- (void)setTypingIndicatorInset:(CGFloat)typingIndicatorInset
-{
+- (void)setTypingIndicatorInset:(CGFloat)typingIndicatorInset {
     _typingIndicatorInset = typingIndicatorInset;
-    [UIView animateWithDuration:0.1 animations:^{
-        [self updateBottomCollectionViewInset];
-    }];
+    [UIView animateWithDuration:0.1
+                     animations:^{
+                       [self updateBottomCollectionViewInset];
+                     }];
 }
 
 #pragma mark - Public Methods
 
-- (BOOL)shouldScrollToBottom
-{
+- (BOOL)shouldScrollToBottom {
     CGPoint bottomOffset = [self bottomOffsetForContentSize:self.collectionView.contentSize];
     CGFloat distanceToBottom = bottomOffset.y - self.collectionView.contentOffset.y;
     BOOL shouldScrollToBottom = distanceToBottom <= ATLMaxScrollDistanceFromBottom && !self.collectionView.isTracking && !self.collectionView.isDragging && !self.collectionView.isDecelerating;
     return shouldScrollToBottom;
 }
 
-- (void)scrollToBottomAnimated:(BOOL)animated
-{
+- (void)scrollToBottomAnimated:(BOOL)animated {
     CGSize contentSize = self.collectionView.contentSize;
     [self.collectionView setContentOffset:[self bottomOffsetForContentSize:contentSize] animated:animated];
 }
 
-#pragma mark - Content Inset Management  
+#pragma mark - Content Inset Management
 
-- (void)updateTopCollectionViewInset
-{
+- (void)updateTopCollectionViewInset {
     [self.addressBarController.view layoutIfNeeded];
-    
+
     UIEdgeInsets contentInset = self.collectionView.contentInset;
     UIEdgeInsets scrollIndicatorInsets = self.collectionView.scrollIndicatorInsets;
-    CGRect frame = [self.view convertRect:self.addressBarController.addressBarView.frame fromView:self.addressBarController.addressBarView.superview];
-    
+    CGRect frame = [self.view convertRect:self.addressBarController.addressBarView.frame
+                                 fromView:self.addressBarController.addressBarView.superview];
+
     contentInset.top = CGRectGetMaxY(frame);
     scrollIndicatorInsets.top = contentInset.top;
     self.collectionView.contentInset = contentInset;
     self.collectionView.scrollIndicatorInsets = scrollIndicatorInsets;
 }
 
-- (void)updateBottomCollectionViewInset
-{
+- (void)updateBottomCollectionViewInset {
     [self.messageInputToolbar layoutIfNeeded];
-    
+
     UIEdgeInsets insets = self.collectionView.contentInset;
     CGFloat keyboardHeight = MAX(self.keyboardHeight, CGRectGetHeight(self.messageInputToolbar.frame));
-    
+
     insets.bottom = keyboardHeight + self.typingIndicatorInset;
     self.collectionView.scrollIndicatorInsets = insets;
     self.collectionView.contentInset = insets;
@@ -209,69 +196,66 @@ static CGFloat const ATLMaxScrollDistanceFromBottom = 150;
 
 #pragma mark - Notification Handlers
 
-- (void)keyboardWillShow:(NSNotification *)notification
-{
+- (void)keyboardWillShow:(NSNotification *)notification {
     [self configureWithKeyboardNotification:notification];
 }
 
-- (void)keyboardWillHide:(NSNotification *)notification
-{
+- (void)keyboardWillHide:(NSNotification *)notification {
     if (![self.navigationController.viewControllers containsObject:self]) {
         return;
     }
     [self configureWithKeyboardNotification:notification];
 }
 
-- (void)messageInputToolbarDidChangeHeight:(NSNotification *)notification
-{
+- (void)messageInputToolbarDidChangeHeight:(NSNotification *)notification {
     if (!self.messageInputToolbar.superview) {
-       return;
+        return;
     }
-    
-    CGRect toolbarFrame = [self.view convertRect:self.messageInputToolbar.frame fromView:self.messageInputToolbar.superview];
+
+    CGRect toolbarFrame =
+        [self.view convertRect:self.messageInputToolbar.frame fromView:self.messageInputToolbar.superview];
     CGFloat keyboardOnscreenHeight = CGRectGetHeight(self.view.frame) - CGRectGetMinY(toolbarFrame);
-    if (keyboardOnscreenHeight == self.keyboardHeight) return;
-    
+    if (keyboardOnscreenHeight == self.keyboardHeight)
+        return;
+
     BOOL messagebarDidGrow = keyboardOnscreenHeight > self.keyboardHeight;
     self.keyboardHeight = keyboardOnscreenHeight;
-     self.typingIndicatorViewBottomConstraint.constant = -self.collectionView.scrollIndicatorInsets.bottom;
+    self.typingIndicatorViewBottomConstraint.constant = -self.collectionView.scrollIndicatorInsets.bottom;
     [self updateBottomCollectionViewInset];
-    
+
     if ([self shouldScrollToBottom] && messagebarDidGrow) {
         [self scrollToBottomAnimated:YES];
     }
 }
 
-- (void)textViewTextDidBeginEditing:(NSNotification *)notification
-{
+- (void)textViewTextDidBeginEditing:(NSNotification *)notification {
     [self scrollToBottomAnimated:YES];
 }
 
-#pragma mark - Keyboard Management 
+#pragma mark - Keyboard Management
 
-- (void)configureWithKeyboardNotification:(NSNotification *)notification
-{
+- (void)configureWithKeyboardNotification:(NSNotification *)notification {
     CGRect keyboardBeginFrame = [notification.userInfo[UIKeyboardFrameBeginUserInfoKey] CGRectValue];
     CGRect keyboardBeginFrameInView = [self.view convertRect:keyboardBeginFrame fromView:nil];
     CGRect keyboardEndFrame = [notification.userInfo[UIKeyboardFrameEndUserInfoKey] CGRectValue];
     CGRect keyboardEndFrameInView = [self.view convertRect:keyboardEndFrame fromView:nil];
     CGRect keyboardEndFrameIntersectingView = CGRectIntersection(self.view.bounds, keyboardEndFrameInView);
-    
+
     CGFloat keyboardHeight = CGRectGetHeight(keyboardEndFrameIntersectingView);
     // Workaround for keyboard height inaccuracy on iOS 8.
     if (floor(NSFoundationVersionNumber) > NSFoundationVersionNumber_iOS_7_1) {
         keyboardHeight -= CGRectGetMinY(self.messageInputToolbar.frame);
     }
     self.keyboardHeight = keyboardHeight;
-    
+
     // Workaround for collection view cell sizes changing/animating when view is first pushed onscreen on iOS 8.
     if (CGRectEqualToRect(keyboardBeginFrameInView, keyboardEndFrameInView)) {
         [UIView performWithoutAnimation:^{
-            [self updateBottomCollectionViewInset];
+          [self updateBottomCollectionViewInset];
         }];
         return;
     }
-    
+
     [self.view layoutIfNeeded];
     [UIView beginAnimations:nil context:NULL];
     [UIView setAnimationDuration:[notification.userInfo[UIKeyboardAnimationDurationUserInfoKey] doubleValue]];
@@ -284,8 +268,7 @@ static CGFloat const ATLMaxScrollDistanceFromBottom = 150;
 
 #pragma mark - Helpers
 
-- (CGPoint)bottomOffsetForContentSize:(CGSize)contentSize
-{
+- (CGPoint)bottomOffsetForContentSize:(CGSize)contentSize {
     CGFloat contentSizeHeight = contentSize.height;
     CGFloat collectionViewFrameHeight = self.collectionView.frame.size.height;
     CGFloat collectionViewBottomInset = self.collectionView.contentInset.bottom;
@@ -294,11 +277,11 @@ static CGFloat const ATLMaxScrollDistanceFromBottom = 150;
     return offset;
 }
 
-- (void)updateViewConstraints
-{
+- (void)updateViewConstraints {
     CGFloat typingIndicatorBottomConstraintConstant = -self.collectionView.scrollIndicatorInsets.bottom;
     if (self.messageInputToolbar.superview) {
-        CGRect toolbarFrame = [self.view convertRect:self.messageInputToolbar.frame fromView:self.messageInputToolbar.superview];
+        CGRect toolbarFrame =
+            [self.view convertRect:self.messageInputToolbar.frame fromView:self.messageInputToolbar.superview];
         CGFloat keyboardOnscreenHeight = CGRectGetHeight(self.view.frame) - CGRectGetMinY(toolbarFrame);
         if (-keyboardOnscreenHeight > typingIndicatorBottomConstraintConstant) {
             typingIndicatorBottomConstraintConstant = -keyboardOnscreenHeight;
@@ -310,44 +293,124 @@ static CGFloat const ATLMaxScrollDistanceFromBottom = 150;
 
 #pragma mark - Auto Layout
 
-- (void)configureCollectionViewLayoutConstraints
-{
-    [self.view addConstraint:[NSLayoutConstraint constraintWithItem:self.collectionView attribute:NSLayoutAttributeLeft relatedBy:NSLayoutRelationEqual toItem:self.view attribute:NSLayoutAttributeLeft multiplier:1.0 constant:0]];
-    [self.view addConstraint:[NSLayoutConstraint constraintWithItem:self.collectionView attribute:NSLayoutAttributeRight relatedBy:NSLayoutRelationEqual toItem:self.view attribute:NSLayoutAttributeRight multiplier:1.0 constant:0]];
-    [self.view addConstraint:[NSLayoutConstraint constraintWithItem:self.collectionView attribute:NSLayoutAttributeTop relatedBy:NSLayoutRelationEqual toItem:self.view attribute:NSLayoutAttributeTop multiplier:1.0 constant:0]];
-    [self.view addConstraint:[NSLayoutConstraint constraintWithItem:self.collectionView attribute:NSLayoutAttributeBottom relatedBy:NSLayoutRelationEqual toItem:self.view attribute:NSLayoutAttributeBottom multiplier:1.0 constant:0]];
+- (void)configureCollectionViewLayoutConstraints {
+    [self.view addConstraint:[NSLayoutConstraint constraintWithItem:self.collectionView
+                                                          attribute:NSLayoutAttributeLeft
+                                                          relatedBy:NSLayoutRelationEqual
+                                                             toItem:self.view
+                                                          attribute:NSLayoutAttributeLeft
+                                                         multiplier:1.0
+                                                           constant:0]];
+    [self.view addConstraint:[NSLayoutConstraint constraintWithItem:self.collectionView
+                                                          attribute:NSLayoutAttributeRight
+                                                          relatedBy:NSLayoutRelationEqual
+                                                             toItem:self.view
+                                                          attribute:NSLayoutAttributeRight
+                                                         multiplier:1.0
+                                                           constant:0]];
+    [self.view addConstraint:[NSLayoutConstraint constraintWithItem:self.collectionView
+                                                          attribute:NSLayoutAttributeTop
+                                                          relatedBy:NSLayoutRelationEqual
+                                                             toItem:self.view
+                                                          attribute:NSLayoutAttributeTop
+                                                         multiplier:1.0
+                                                           constant:0]];
+    [self.view addConstraint:[NSLayoutConstraint constraintWithItem:self.collectionView
+                                                          attribute:NSLayoutAttributeBottom
+                                                          relatedBy:NSLayoutRelationEqual
+                                                             toItem:self.view
+                                                          attribute:NSLayoutAttributeBottom
+                                                         multiplier:1.0
+                                                           constant:0]];
 }
 
-- (void)configureTypingIndicatorLayoutConstraints
-{
+- (void)configureTypingIndicatorLayoutConstraints {
     // Typing Indicatr
-    [self.view addConstraint:[NSLayoutConstraint constraintWithItem:self.typingIndicatorController.view attribute:NSLayoutAttributeLeft relatedBy:NSLayoutRelationEqual toItem:self.view attribute:NSLayoutAttributeLeft multiplier:1.0 constant:0]];
-    [self.view addConstraint:[NSLayoutConstraint constraintWithItem:self.typingIndicatorController.view attribute:NSLayoutAttributeWidth relatedBy:NSLayoutRelationEqual toItem:self.view attribute:NSLayoutAttributeWidth multiplier:1.0 constant:0]];
-    [self.view addConstraint:[NSLayoutConstraint constraintWithItem:self.typingIndicatorController.view attribute:NSLayoutAttributeHeight relatedBy:NSLayoutRelationEqual toItem:nil attribute:NSLayoutAttributeNotAnAttribute multiplier:1.0 constant:ATLTypingIndicatorHeight]];
-    self.typingIndicatorViewBottomConstraint = [NSLayoutConstraint constraintWithItem:self.typingIndicatorController.view attribute:NSLayoutAttributeBottom relatedBy:NSLayoutRelationEqual toItem:self.view attribute:NSLayoutAttributeBottom multiplier:1.0 constant:0];
+    [self.view addConstraint:[NSLayoutConstraint constraintWithItem:self.typingIndicatorController.view
+                                                          attribute:NSLayoutAttributeLeft
+                                                          relatedBy:NSLayoutRelationEqual
+                                                             toItem:self.view
+                                                          attribute:NSLayoutAttributeLeft
+                                                         multiplier:1.0
+                                                           constant:0]];
+    [self.view addConstraint:[NSLayoutConstraint constraintWithItem:self.typingIndicatorController.view
+                                                          attribute:NSLayoutAttributeWidth
+                                                          relatedBy:NSLayoutRelationEqual
+                                                             toItem:self.view
+                                                          attribute:NSLayoutAttributeWidth
+                                                         multiplier:1.0
+                                                           constant:0]];
+    [self.view addConstraint:[NSLayoutConstraint constraintWithItem:self.typingIndicatorController.view
+                                                          attribute:NSLayoutAttributeHeight
+                                                          relatedBy:NSLayoutRelationEqual
+                                                             toItem:nil
+                                                          attribute:NSLayoutAttributeNotAnAttribute
+                                                         multiplier:1.0
+                                                           constant:ATLTypingIndicatorHeight]];
+    self.typingIndicatorViewBottomConstraint = [NSLayoutConstraint constraintWithItem:self.typingIndicatorController.view
+                                                                            attribute:NSLayoutAttributeBottom
+                                                                            relatedBy:NSLayoutRelationEqual
+                                                                               toItem:self.view
+                                                                            attribute:NSLayoutAttributeBottom
+                                                                           multiplier:1.0
+                                                                             constant:0];
     [self.view addConstraint:self.typingIndicatorViewBottomConstraint];
 }
 
-- (void)configureAddressbarLayoutConstraints
-{
+- (void)configureAddressbarLayoutConstraints {
     // Address Bar
-    [self.view addConstraint:[NSLayoutConstraint constraintWithItem:self.addressBarController.view attribute:NSLayoutAttributeLeft relatedBy:NSLayoutRelationEqual toItem:self.view attribute:NSLayoutAttributeLeft multiplier:1.0 constant:0]];
-    [self.view addConstraint:[NSLayoutConstraint constraintWithItem:self.addressBarController.view attribute:NSLayoutAttributeWidth relatedBy:NSLayoutRelationEqual toItem:self.view attribute:NSLayoutAttributeWidth multiplier:1.0 constant:0]];
-    [self.view addConstraint:[NSLayoutConstraint constraintWithItem:self.addressBarController.view attribute:NSLayoutAttributeTop relatedBy:NSLayoutRelationEqual toItem:self.topLayoutGuide attribute:NSLayoutAttributeBottom multiplier:1.0 constant:0]];
-    [self.view addConstraint:[NSLayoutConstraint constraintWithItem:self.addressBarController.view attribute:NSLayoutAttributeBottom relatedBy:NSLayoutRelationEqual toItem:self.view attribute:NSLayoutAttributeBottom multiplier:1.0 constant:0]];
+    [self.view addConstraint:[NSLayoutConstraint constraintWithItem:self.addressBarController.view
+                                                          attribute:NSLayoutAttributeLeft
+                                                          relatedBy:NSLayoutRelationEqual
+                                                             toItem:self.view
+                                                          attribute:NSLayoutAttributeLeft
+                                                         multiplier:1.0
+                                                           constant:0]];
+    [self.view addConstraint:[NSLayoutConstraint constraintWithItem:self.addressBarController.view
+                                                          attribute:NSLayoutAttributeWidth
+                                                          relatedBy:NSLayoutRelationEqual
+                                                             toItem:self.view
+                                                          attribute:NSLayoutAttributeWidth
+                                                         multiplier:1.0
+                                                           constant:0]];
+    [self.view addConstraint:[NSLayoutConstraint constraintWithItem:self.addressBarController.view
+                                                          attribute:NSLayoutAttributeTop
+                                                          relatedBy:NSLayoutRelationEqual
+                                                             toItem:self.topLayoutGuide
+                                                          attribute:NSLayoutAttributeBottom
+                                                         multiplier:1.0
+                                                           constant:0]];
+    [self.view addConstraint:[NSLayoutConstraint constraintWithItem:self.addressBarController.view
+                                                          attribute:NSLayoutAttributeBottom
+                                                          relatedBy:NSLayoutRelationEqual
+                                                             toItem:self.view
+                                                          attribute:NSLayoutAttributeBottom
+                                                         multiplier:1.0
+                                                           constant:0]];
 }
 
-#pragma mark - Notification Registration 
+#pragma mark - Notification Registration
 
-- (void)atl_baseRegisterForNotifications
-{
+- (void)atl_baseRegisterForNotifications {
     // Keyboard Notifications
-    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(keyboardWillShow:) name:UIKeyboardWillShowNotification object:nil];
-    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(keyboardWillHide:) name:UIKeyboardWillHideNotification object:nil];
-    
+    [[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(keyboardWillShow:)
+                                                 name:UIKeyboardWillShowNotification
+                                               object:nil];
+    [[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(keyboardWillHide:)
+                                                 name:UIKeyboardWillHideNotification
+                                               object:nil];
+
     // ATLMessageInputToolbar Notifications
-    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(textViewTextDidBeginEditing:) name:UITextViewTextDidBeginEditingNotification object:self.messageInputToolbar.textInputView];
-    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(messageInputToolbarDidChangeHeight:) name:ATLMessageInputToolbarDidChangeHeightNotification object:self.messageInputToolbar];
+    [[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(textViewTextDidBeginEditing:)
+                                                 name:UITextViewTextDidBeginEditingNotification
+                                               object:self.messageInputToolbar.textInputView];
+    [[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(messageInputToolbarDidChangeHeight:)
+                                                 name:ATLMessageInputToolbarDidChangeHeightNotification
+                                               object:self.messageInputToolbar];
 }
 
 @end
