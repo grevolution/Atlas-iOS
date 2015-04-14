@@ -30,8 +30,6 @@
 
 @implementation ATLSampleConversationListViewController
 
-#pragma mark - Conversation List View Controller Delegate Methods
-
 - (void)viewDidLoad
 {
     [super viewDidLoad];
@@ -56,10 +54,13 @@
     [self.navigationController pushViewController:controller animated:YES];
 }
 
+#pragma mark - Conversation List View Controller Delegate Methods
+
 - (void)conversationListViewController:(ATLConversationListViewController *)conversationListViewController didSelectConversation:(LYRConversation *)conversation
 {
     ATLSampleConversationViewController *controller = [ATLSampleConversationViewController conversationViewControllerWithLayerClient:self.layerClient];
     controller.conversation = conversation;
+    controller.hidesBottomBarWhenPushed = YES;
     [self.navigationController pushViewController:controller animated:YES];
 }
 
@@ -76,6 +77,13 @@
 - (id<ATLAvatarItem>)conversationListViewController:(ATLConversationListViewController *)conversationListViewController avatarItemForConversation:(LYRConversation *)conversation
 {
     return [ATLSampleConversationAvatarItem new];
+}
+
+- (void)conversationListViewController:(ATLConversationListViewController *)conversationListViewController didSearchForText:(NSString *)searchText completion:(void (^)(NSSet *))completion
+{
+    NSSet *participants = [ATLUserMock allMockParticipants];
+    NSSet *filteredParticipants = [participants filteredSetUsingPredicate:[NSPredicate predicateWithFormat:@"SELF.fullName CONTAINS %@", searchText]];
+    completion(filteredParticipants);
 }
 
 #pragma mark - Conversation List View Controller Data Source Methods

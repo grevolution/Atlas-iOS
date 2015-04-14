@@ -56,7 +56,6 @@ static CGFloat const ATLMaxScrollDistanceFromBottom = 150;
     _displaysAddressBar = NO;
     _typingParticipantIDs = [NSMutableArray new];
     _firstAppearance = YES;
-    //    _displaysAddressBar = YES;
 }
 
 - (void)loadView {

@@ -92,6 +92,22 @@
  */
 - (id<ATLAvatarItem>)conversationListViewController:(ATLConversationListViewController *)conversationListViewController avatarItemForConversation:(LYRConversation *)conversation;
 
+/**
+ @abstract Asks the data source for a string to display on the delete button for a given deletion mode.
+ @param conversationListViewController The `LYRConversationListViewController` in which the button title will appear.
+ @param deletionMode The `LYRDeletionMode` for which a button has to be displayed.
+ @return The string to be displayed on the delete button for a given deletion mode in the conversation list.
+ */
+- (NSString *)conversationListViewController:(ATLConversationListViewController *)conversationListViewController textForButtonWithDeletionMode:(LYRDeletionMode)deletionMode;
+
+/**
+ @abstract Asks the data source for a color to apply to the delete button for a given deletion mode.
+ @param conversationListViewController The `LYRConversationListViewController` in which the button title will appear.
+ @param deletionMode The `LYRDeletionMode` for which a button has to be displayed.
+ @return The color to apply on the delete button for a given deletion mode in the conversation list.
+ */
+- (UIColor *)conversationListViewController:(ATLConversationListViewController *)conversationListViewController colorForButtonWithDeletionMode:(LYRDeletionMode)deletionMode;
+
 @end
 
 /**
@@ -100,9 +116,9 @@
  */
 @interface ATLConversationListViewController : UITableViewController
 
-///---------------------------------------
-/// @name Initializing a Controller
-///---------------------------------------
+///-------------------------------------------------------
+/// @name Initializing a Conversation List View Controller
+///-------------------------------------------------------
 
 /**
  @abstract Creates and returns a new conversation list initialized with a given `LYRClient` object.
@@ -110,6 +126,10 @@
  @return An `LYRConversationListViewController` object.
  */
 + (instancetype)conversationListViewControllerWithLayerClient:(LYRClient *)layerClient;
+
+///-------------------------------------------------------
+/// @name Configuring Layer Client, Delegate & Data Source
+///-------------------------------------------------------
 
 /**
  @abstract The `LYRClient` object used to initialize the controller. 
@@ -130,7 +150,7 @@
 @property (nonatomic, weak) id<ATLConversationListViewControllerDataSource> dataSource;
 
 ///----------------------------------------
-/// @name Configuration
+/// @name Configuring the Conversation List
 ///----------------------------------------
 
 /**
@@ -174,5 +194,25 @@
  @raises NSInternalInconsistencyException Raised if the value is mutated after the receiver has been presented.
  */
 @property (nonatomic, assign) CGFloat rowHeight;
+
+///-------------
+/// @name Search
+///-------------
+
+/**
+ @abstract The controller used to display search results.
+ */
+@property (nonatomic, readonly) UISearchDisplayController *searchContorller;
+
+
+///------------------------------
+/// @name Reloading Conversations
+///------------------------------
+
+/**
+ @abstract Reloads the cell for the given Conversation.
+ @param conversation The Conversation object to reload the corresponding cell of. Cannot be `nil`.
+ */
+- (void)reloadCellForConversation:(LYRConversation *)conversation;
 
 @end
