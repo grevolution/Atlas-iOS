@@ -1,5 +1,27 @@
 # Atlas Changelog
 
+## 1.0.6
+
+### Bug Fixes
+
+* Removed all compiler warnings. 
+
+## 1.0.5
+
+### Public API Changes
+
+* Added `avatarImageURL` property to `ATLAvatarItem`. 
+
+### Enhancements
+
+* Added logic to fetch image from a URL to `ATLAvatarImageView`. 
+* Added image cache to `ATLAvatarImageView`. 
+
+### Bug Fixes
+
+* Fixed bug which caused `ATLConversationViewController` animation assertions when attempting to reload cells via the public API. 
+* Fixed bug which prevented cell font customizations from being appied. 
+
 ## 1.0.4
 
 ### Public API Changes
