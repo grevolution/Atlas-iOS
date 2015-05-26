@@ -130,7 +130,12 @@ static CGFloat const ATLButtonHeight = 28.0f;
     leftButtonFrame.size.height = ATLButtonHeight;
     leftButtonFrame.origin.x = ATLLeftButtonHorizontalMargin;
 
-    rightButtonFrame.size.width = ATLRightAccessoryButtonWidth;
+    if (self.rightAccessoryButtonWidth) {
+        rightButtonFrame.size.width = self.rightAccessoryButtonWidth;
+    } else {
+        rightButtonFrame.size.width = ATLRightAccessoryButtonWidth;
+    }
+    
     rightButtonFrame.size.height = ATLButtonHeight;
     rightButtonFrame.origin.x = CGRectGetWidth(frame) - CGRectGetWidth(rightButtonFrame) - ATLRightButtonHorizontalMargin;
 

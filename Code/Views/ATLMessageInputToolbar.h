@@ -130,6 +130,13 @@ extern NSString *const ATLMessageInputToolbarAccessibilityLabel;
 @property(nonatomic) BOOL displaysRightAccessoryImage;
 
 /**
+ @abstract The amount of space the rightAccessoryButtonWidth should take.
+ @disucssion If 0, then the right accessory button will take the default width defined in the constant ATLRightAccessoryButtonWidth
+ @default 0
+ */
+@property (nonatomic) CGFloat rightAccessoryButtonWidth;
+
+/**
  @abstract An automatically resizing message composition field.
  */
 @property (nonatomic) ATLMessageComposeTextView *textInputView;
@@ -152,5 +159,6 @@ extern NSString *const ATLMessageInputToolbarAccessibilityLabel;
  @discussion Any existing media attachments will be removed when the right accessory button is tapped.
  */
 @property (nonatomic, readonly) NSArray *mediaAttachments;
+
 
 @end
