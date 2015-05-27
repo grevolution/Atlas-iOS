@@ -130,11 +130,18 @@ extern NSString *const ATLMessageInputToolbarAccessibilityLabel;
 @property(nonatomic) BOOL displaysRightAccessoryImage;
 
 /**
- @abstract The amount of space the rightAccessoryButtonWidth should take.
+ @abstract The amount of space the right accessory button should take.
  @disucssion If 0, then the right accessory button will take the default width defined in the constant ATLRightAccessoryButtonWidth
  @default 0
  */
 @property (nonatomic) CGFloat rightAccessoryButtonWidth;
+
+/**
+ @abstract The amount of space the left accessory button should take.
+ @disucssion If 0, then the left accessory button will take the default width defined in the constant ATLLeftAccessoryButtonWidth
+ @default 0
+ */
+@property (nonatomic) CGFloat leftAccessoryButtonWidth;
 
 /**
  @abstract An automatically resizing message composition field.
