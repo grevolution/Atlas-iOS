@@ -124,8 +124,8 @@ static CGFloat const ATLButtonHeight = 28.0f;
     if (!self.leftAccessoryButton) {
         leftButtonFrame.size.width = 0;
     } else {
-        if (self.leftButtonAccessoryWidth > 0) {
-            leftButtonFrame.size.width = self.leftButtonAccessoryWidth;
+        if (self.leftAccessoryButtonWidth > 0) {
+            leftButtonFrame.size.width = self.leftAccessoryButtonWidth;
         } else {
             leftButtonFrame.size.width = ATLLeftAccessoryButtonWidth;
         }
