@@ -36,7 +36,6 @@
     self.dataSource = self;
     self.delegate = self;
     self.deletionModes = @[@(LYRDeletionModeAllParticipants), @(LYRDeletionModeLocal)];
-    self.displaysAvatarItem = NO;
     
     UIBarButtonItem *new = [[UIBarButtonItem alloc] initWithTitle:@"New" style:UIBarButtonItemStylePlain target:self action:@selector(handleNewTap)];
     self.navigationItem.rightBarButtonItem = new;
@@ -83,7 +82,7 @@
 - (void)conversationListViewController:(ATLConversationListViewController *)conversationListViewController didSearchForText:(NSString *)searchText completion:(void (^)(NSSet *))completion
 {
     NSSet *participants = [ATLUserMock allMockParticipants];
-    NSSet *filteredParticipants = [participants filteredSetUsingPredicate:[NSPredicate predicateWithFormat:@"SELF.fullName CONTAINS %@", searchText]];
+    NSSet *filteredParticipants = [participants filteredSetUsingPredicate:[NSPredicate predicateWithFormat:@"SELF.fullName CONTAINS[cd] %@", searchText]];
     completion(filteredParticipants);
 }
 

@@ -54,15 +54,13 @@ static CGFloat const ATLLeftAccessoryButtonWidth = 40.0f;
 static CGFloat const ATLRightAccessoryButtonWidth = 46.0f;
 static CGFloat const ATLButtonHeight = 28.0f;
 
-+ (void)initialize
-{
++ (void)initialize {
     ATLMessageInputToolbar *proxy = [self appearance];
     proxy.rightAccessoryButtonActiveColor = ATLBlueColor();
     proxy.rightAccessoryButtonDisabledColor = [UIColor grayColor];
 }
 
-- (id)init
-{
+- (id)init {
     self = [super init];
     if (self) {
         self.accessibilityLabel = ATLMessageInputToolbarAccessibilityLabel;
@@ -115,8 +113,12 @@ static CGFloat const ATLButtonHeight = 28.0f;
         self.firstAppearance = NO;
     }
 
+    // set the font for the dummy text view as well
+    self.dummyTextView.font = self.textInputView.font;
+
     // We layout the views manually since using Auto Layout seems to cause issues in this context (i.e. an auto height
     // resizing text view in an input accessory view) especially with iOS 7.1.
+
     CGRect frame = self.frame;
     CGRect leftButtonFrame = self.leftAccessoryButton.frame;
     CGRect rightButtonFrame = self.rightAccessoryButton.frame;
@@ -139,7 +141,7 @@ static CGFloat const ATLButtonHeight = 28.0f;
     } else {
         rightButtonFrame.size.width = ATLRightAccessoryButtonWidth;
     }
-    
+
     rightButtonFrame.size.height = ATLButtonHeight;
     rightButtonFrame.origin.x = CGRectGetWidth(frame) - CGRectGetWidth(rightButtonFrame) - ATLRightButtonHorizontalMargin;
 
@@ -186,7 +188,7 @@ static CGFloat const ATLButtonHeight = 28.0f;
         for (UIImage *image in images) {
             ATLMediaAttachment *mediaAttachment =
                 [ATLMediaAttachment mediaAttachmentWithImage:image metadata:nil thumbnailSize:ATLDefaultThumbnailSize];
-            [self insertMediaAttachment:mediaAttachment];
+            [self insertMediaAttachment:mediaAttachment withEndLineBreak:YES];
         }
         return;
     }
@@ -200,7 +202,8 @@ static CGFloat const ATLButtonHeight = 28.0f;
     [self setNeedsLayout];
 }
 
-- (void)insertMediaAttachment:(ATLMediaAttachment *)mediaAttachment {
+- (void)insertMediaAttachment:(ATLMediaAttachment *)mediaAttachment withEndLineBreak:(BOOL)endLineBreak;
+{
     UITextView *textView = self.textInputView;
 
     NSMutableAttributedString *attributedString = [textView.attributedText mutableCopy];
@@ -210,13 +213,19 @@ static CGFloat const ATLButtonHeight = 28.0f;
         [attributedString appendAttributedString:lineBreak];
     }
 
-    NSMutableAttributedString *attachmentString = [[NSAttributedString attributedStringWithAttachment:mediaAttachment] mutableCopy];
-    [attachmentString addAttribute:NSFontAttributeName
-                             value:textView.font
-                             range:NSMakeRange(0, attachmentString.length)];
+    NSMutableAttributedString *attachmentString = (mediaAttachment.mediaMIMEType == ATLMIMETypeTextPlain) ? [[NSAttributedString alloc] initWithString:mediaAttachment.textRepresentation] : [[NSAttributedString attributedStringWithAttachment:mediaAttachment] mutableCopy];
     [attributedString appendAttributedString:attachmentString];
-    [attributedString appendAttributedString:lineBreak];
-
+    if (endLineBreak) {
+        [attributedString appendAttributedString:lineBreak];
+    }
+    [attributedString addAttribute:NSFontAttributeName
+                             value:textView.font
+                             range:NSMakeRange(0, attributedString.length)];
+    if (textView.textColor) {
+        [attributedString addAttribute:NSForegroundColorAttributeName
+                                 value:textView.textColor
+                                 range:NSMakeRange(0, attributedString.length)];
+    }
     textView.attributedText = attributedString;
     if ([self.inputToolBarDelegate respondsToSelector:@selector(messageInputToolbarDidType:)]) {
         [self.inputToolBarDelegate messageInputToolbarDidType:self];
@@ -244,14 +253,12 @@ static CGFloat const ATLButtonHeight = 28.0f;
     [self.rightAccessoryButton setImage:rightAccessoryImage forState:UIControlStateNormal];
 }
 
-- (void)setRightAccessoryButtonActiveColor:(UIColor *)rightAccessoryButtonActiveColor
-{
+- (void)setRightAccessoryButtonActiveColor:(UIColor *)rightAccessoryButtonActiveColor {
     _rightAccessoryButtonActiveColor = rightAccessoryButtonActiveColor;
     [self.rightAccessoryButton setTitleColor:rightAccessoryButtonActiveColor forState:UIControlStateNormal];
 }
 
-- (void)setRightAccessoryButtonDisabledColor:(UIColor *)rightAccessoryButtonDisabledColor
-{
+- (void)setRightAccessoryButtonDisabledColor:(UIColor *)rightAccessoryButtonDisabledColor {
     _rightAccessoryButtonDisabledColor = rightAccessoryButtonDisabledColor;
     [self.rightAccessoryButton setTitleColor:rightAccessoryButtonDisabledColor forState:UIControlStateDisabled];
 }
@@ -334,19 +341,19 @@ static CGFloat const ATLButtonHeight = 28.0f;
                                  inRange:NSMakeRange(0, attributedString.length)
                                  options:0
                               usingBlock:^(id attachment, NSRange range, BOOL *stop) {
-                                if ([attachment isKindOfClass:[ATLMediaAttachment class]]) {
-                                    ATLMediaAttachment *mediaAttachment = (ATLMediaAttachment *)attachment;
-                                    [mediaAttachments addObject:mediaAttachment];
-                                    return;
-                                }
-                                NSAttributedString *attributedSubstring = [attributedString attributedSubstringFromRange:range];
-                                NSString *substring = attributedSubstring.string;
-                                NSString *trimmedSubstring = [substring stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
-                                if (trimmedSubstring.length == 0) {
-                                    return;
-                                }
-                                ATLMediaAttachment *mediaAttachment = [ATLMediaAttachment mediaAttachmentWithText:trimmedSubstring];
-                                [mediaAttachments addObject:mediaAttachment];
+                                  if ([attachment isKindOfClass:[ATLMediaAttachment class]]) {
+                                      ATLMediaAttachment *mediaAttachment = (ATLMediaAttachment *)attachment;
+                                      [mediaAttachments addObject:mediaAttachment];
+                                      return;
+                                  }
+                                  NSAttributedString *attributedSubstring = [attributedString attributedSubstringFromRange:range];
+                                  NSString *substring = attributedSubstring.string;
+                                  NSString *trimmedSubstring = [substring stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+                                  if (trimmedSubstring.length == 0) {
+                                      return;
+                                  }
+                                  ATLMediaAttachment *mediaAttachment = [ATLMediaAttachment mediaAttachmentWithText:trimmedSubstring];
+                                  [mediaAttachments addObject:mediaAttachment];
                               }];
     return mediaAttachments;
 }
@@ -383,6 +390,11 @@ static CGFloat const ATLButtonHeight = 28.0f;
     [self.rightAccessoryButton setTitle:@"Send" forState:UIControlStateNormal];
     [self.rightAccessoryButton setTitleColor:self.rightAccessoryButtonActiveColor forState:UIControlStateNormal];
     [self.rightAccessoryButton setTitleColor:self.rightAccessoryButtonDisabledColor forState:UIControlStateDisabled];
+    if (!self.displaysRightAccessoryImage && !self.textInputView.text.length) {
+        self.rightAccessoryButton.enabled = NO;
+    } else {
+        self.rightAccessoryButton.enabled = YES;
+    }
 }
 
 - (void)configureRightAccessoryButtonForImage {

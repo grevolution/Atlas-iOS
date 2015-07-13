@@ -57,6 +57,17 @@ static NSString *const ATLDefaultPushAlertGIF = @"sent you a GIF.";
 static NSString *const ATLDefaultPushAlertImage = @"sent you a photo.";
 static NSString *const ATLDefaultPushAlertLocation = @"sent you a location.";
 static NSString *const ATLDefaultPushAlertText = @"sent you a message.";
+static NSInteger const ATLPhotoActionSheet = 1000;
+
++ (NSCache *)sharedMediaAttachmentCache
+{
+    static NSCache *_sharedCache;
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        _sharedCache = [NSCache new];
+    });
+    return _sharedCache;
+}
 
 + (instancetype)conversationViewControllerWithLayerClient:(LYRClient *)layerClient;
 {
@@ -64,7 +75,7 @@ static NSString *const ATLDefaultPushAlertText = @"sent you a message.";
     return [[self alloc] initWithLayerClient:layerClient];
 }
 
-- (id)initWithLayerClient:(LYRClient *)layerClient
+- (instancetype)initWithLayerClient:(LYRClient *)layerClient
 {
     self = [super init];
     if (self) {
@@ -98,6 +109,7 @@ static NSString *const ATLDefaultPushAlertText = @"sent you a message.";
     _sectionHeaders = [NSHashTable weakObjectsHashTable];
     _sectionFooters = [NSHashTable weakObjectsHashTable];
     _objectChanges = [NSMutableArray new];
+    _animationQueue = dispatch_queue_create("com.atlas.animationQueue", DISPATCH_QUEUE_SERIAL);
 }
 
 - (void)loadView
@@ -130,7 +142,6 @@ static NSString *const ATLDefaultPushAlertText = @"sent you a message.";
     self.messageInputToolbar.inputToolBarDelegate = self;
     self.addressBarController.delegate = self;
     self.canDisableAddressBar = YES;
-    self.animationQueue = dispatch_queue_create("com.atlas.animationQueue", DISPATCH_QUEUE_SERIAL);
     [self atl_registerForNotifications];
 }
 
@@ -146,6 +157,9 @@ static NSString *const ATLDefaultPushAlertText = @"sent you a message.";
     if (!self.hasAppeared) {
         [self.collectionView layoutIfNeeded];
     }
+    if (!self.hasAppeared && [[[self class] sharedMediaAttachmentCache] objectForKey:self.conversation.identifier]) {
+        [self loadCachedMediaAttachments];
+    }
 }
 
 - (void)viewDidAppear:(BOOL)animated
@@ -160,8 +174,27 @@ static NSString *const ATLDefaultPushAlertText = @"sent you a message.";
 
 - (void)dealloc
 {
+    if (self.messageInputToolbar.mediaAttachments.count > 0) {
+        [self cacheMediaAttachments];
+    }
     self.collectionView.delegate = nil;
     [[NSNotificationCenter defaultCenter] removeObserver:self];
+}
+
+- (void)cacheMediaAttachments
+{
+    [[[self class] sharedMediaAttachmentCache] setObject:self.messageInputToolbar.mediaAttachments forKey:self.conversation.identifier];
+}
+
+- (void)loadCachedMediaAttachments
+{
+    NSArray *mediaAttachments = [[[self class] sharedMediaAttachmentCache] objectForKey:self.conversation.identifier];
+    for (int i = 0; i < mediaAttachments.count; i++) {
+        ATLMediaAttachment *attachment = [mediaAttachments objectAtIndex:i];
+        BOOL shouldHaveLineBreak = (i < mediaAttachments.count - 1) || !(attachment.mediaMIMEType == ATLMIMETypeTextPlain);
+        [self.messageInputToolbar insertMediaAttachment:attachment withEndLineBreak:shouldHaveLineBreak];
+    }
+    [[[self class] sharedMediaAttachmentCache] removeObjectForKey:self.conversation.identifier];
 }
 
 #pragma mark - Conversation Data Source Setup
@@ -194,7 +227,19 @@ static NSString *const ATLDefaultPushAlertText = @"sent you a message.";
 - (void)fetchLayerMessages
 {
     if (!self.conversation) return;
-    self.conversationDataSource = [ATLConversationDataSource dataSourceWithLayerClient:self.layerClient conversation:self.conversation];
+    
+    LYRQuery *query = [LYRQuery queryWithQueryableClass:[LYRMessage class]];
+    query.predicate = [LYRPredicate predicateWithProperty:@"conversation" predicateOperator:LYRPredicateOperatorIsEqualTo value:self.conversation];
+    query.sortDescriptors = @[[NSSortDescriptor sortDescriptorWithKey:@"position" ascending:YES]];
+    
+    if ([self.dataSource respondsToSelector:@selector(conversationViewController:willLoadWithQuery:)]) {
+        query = [self.dataSource conversationViewController:self willLoadWithQuery:query];
+        if (![query isKindOfClass:[LYRQuery class]]){
+            @throw [NSException exceptionWithName:NSInvalidArgumentException reason:@"Data source must return an `LYRQuery` object." userInfo:nil];
+        }
+    }
+    
+    self.conversationDataSource = [ATLConversationDataSource dataSourceWithLayerClient:self.layerClient query:query];
     self.conversationDataSource.queryController.delegate = self;
     self.showingMoreMessagesIndicator = [self.conversationDataSource moreMessagesAvailable];
     [self.collectionView reloadData];
@@ -500,6 +545,7 @@ static NSString *const ATLDefaultPushAlertText = @"sent you a message.";
                                                destructiveButtonTitle:nil
                                                     otherButtonTitles:@"Take Photo", @"Last Photo Taken", @"Photo Library", nil];
     [actionSheet showInView:self.view];
+    actionSheet.tag = ATLPhotoActionSheet;
 }
 
 - (void)messageInputToolbar:(ATLMessageInputToolbar *)messageInputToolbar didTapRightAccessoryButton:(UIButton *)rightAccessoryButton
@@ -620,21 +666,23 @@ static NSString *const ATLDefaultPushAlertText = @"sent you a message.";
 
 - (void)actionSheet:(UIActionSheet *)actionSheet didDismissWithButtonIndex:(NSInteger)buttonIndex
 {
-    switch (buttonIndex) {
-        case 0:
-            [self displayImagePickerWithSourceType:UIImagePickerControllerSourceTypeCamera];
-            break;
-            
-        case 1:
-           [self captureLastPhotoTaken];
-            break;
-          
-        case 2:
-            [self displayImagePickerWithSourceType:UIImagePickerControllerSourceTypePhotoLibrary];
-            break;
-            
-        default:
-            break;
+    if (actionSheet.tag == ATLPhotoActionSheet) {
+        switch (buttonIndex) {
+            case 0:
+                [self displayImagePickerWithSourceType:UIImagePickerControllerSourceTypeCamera];
+                break;
+                
+            case 1:
+                [self captureLastPhotoTaken];
+                break;
+                
+            case 2:
+                [self displayImagePickerWithSourceType:UIImagePickerControllerSourceTypePhotoLibrary];
+                break;
+                
+            default:
+                break;
+        }
     }
 }
 
@@ -659,7 +707,7 @@ static NSString *const ATLDefaultPushAlertText = @"sent you a message.";
             NSLog(@"Failed to capture last photo with error: %@", [error localizedDescription]);
         } else {
             ATLMediaAttachment *mediaAttachment = [ATLMediaAttachment mediaAttachmentWithAssetURL:assetURL thumbnailSize:ATLDefaultThumbnailSize];
-            [self.messageInputToolbar insertMediaAttachment:mediaAttachment];
+            [self.messageInputToolbar insertMediaAttachment:mediaAttachment withEndLineBreak:YES];
         }
     });
 }
@@ -681,7 +729,7 @@ static NSString *const ATLDefaultPushAlertText = @"sent you a message.";
         } else {
             return;
         }
-        [self.messageInputToolbar insertMediaAttachment:mediaAttachment];
+        [self.messageInputToolbar insertMediaAttachment:mediaAttachment withEndLineBreak:YES];
     }
     [self.navigationController dismissViewControllerAnimated:YES completion:nil];
     [self.view becomeFirstResponder];
@@ -726,14 +774,11 @@ static NSString *const ATLDefaultPushAlertText = @"sent you a message.";
     if (![notification.object isEqual:self.layerClient]) return;
     
     NSArray *changes = notification.userInfo[LYRClientObjectChangesUserInfoKey];
-    for (NSDictionary *change in changes) {
-        
-        id changedObject = change[LYRObjectChangeObjectKey];
-        if (![changedObject isEqual:self.conversation]) continue;
-        
-        LYRObjectChangeType changeType = [change[LYRObjectChangeTypeKey] integerValue];
-        NSString *changedProperty = change[LYRObjectChangePropertyKey];
-        if (changeType == LYRObjectChangeTypeUpdate && [changedProperty isEqualToString:@"participants"]) {
+    for (LYRObjectChange *change in changes) {
+        if (![change.object isEqual:self.conversation]) {
+            continue;
+        }
+        if (change.type == LYRObjectChangeTypeUpdate && [change.property isEqualToString:@"participants"]) {
             [self configureControllerForChangedParticipants];
             break;
         }
@@ -919,8 +964,9 @@ static NSString *const ATLDefaultPushAlertText = @"sent you a message.";
         if (indexPath) {
             NSIndexPath *collectionViewIndexPath = [self.conversationDataSource collectionViewIndexPathForQueryControllerIndexPath:indexPath];
             if (collectionViewIndexPath) {
+                // Configure the cell, the header, and the footer
                 dispatch_async(dispatch_get_main_queue(), ^{
-                    [self.collectionView reloadItemsAtIndexPaths:@[ collectionViewIndexPath ]];
+                    [self configureCollectionViewElementsAtCollectionViewIndexPath:collectionViewIndexPath];
                 });
             }
         }
@@ -930,7 +976,7 @@ static NSString *const ATLDefaultPushAlertText = @"sent you a message.";
 - (void)reloadCellsForMessagesSentByParticipantWithIdentifier:(NSString *)participantIdentifier
 {
     dispatch_async(self.animationQueue, ^{
-        // Query for the All the Messages in the set of identifiers we have where sent by user == participantIdentifier
+        // Query for all of the message identifiers in the conversation
         LYRQuery *messageIdentifiersQuery = [self.conversationDataSource.queryController.query copy];
         messageIdentifiersQuery.resultType = LYRQueryResultTypeIdentifiers;
         NSError *error = nil;
@@ -939,7 +985,8 @@ static NSString *const ATLDefaultPushAlertText = @"sent you a message.";
             NSLog(@"LayerKit failed to execute query with error: %@", error);
             return;
         }
-        
+
+        // Query for the all of the message identifiers in the above set where user == participantIdentifier
         LYRQuery *query = [LYRQuery queryWithQueryableClass:[LYRMessage class]];
         LYRPredicate *senderPredicate = [LYRPredicate predicateWithProperty:@"sender.userID" predicateOperator:LYRPredicateOperatorIsEqualTo value:participantIdentifier];
         LYRPredicate *objectIdentifiersPredicate = [LYRPredicate predicateWithProperty:@"identifier" predicateOperator:LYRPredicateOperatorIsIn value:messageIdentifiers];
@@ -950,12 +997,17 @@ static NSString *const ATLDefaultPushAlertText = @"sent you a message.";
             NSLog(@"LayerKit failed to execute query with error: %@", error);
             return;
         }
-        
+
+        // Convert query controller index paths to collection view index paths
         NSDictionary *objectIdentifiersToIndexPaths = [self.conversationDataSource.queryController indexPathsForObjectsWithIdentifiers:messageIdentifiersToReload.set];
-        NSArray *indexPaths = [objectIdentifiersToIndexPaths allValues];
-        dispatch_async(dispatch_get_main_queue(), ^{
-            [self.collectionView reloadItemsAtIndexPaths:indexPaths];
-        });
+        NSArray *queryControllerIndexPaths = [objectIdentifiersToIndexPaths allValues];
+        for (NSIndexPath *indexPath in queryControllerIndexPaths) {
+            NSIndexPath *collectionViewIndexPath = [self.conversationDataSource collectionViewIndexPathForQueryControllerIndexPath:indexPath];
+            // Configure the cell, the header, and the footer
+            dispatch_async(dispatch_get_main_queue(), ^{
+                [self configureCollectionViewElementsAtCollectionViewIndexPath:collectionViewIndexPath];
+            });
+        }
     });
 }
 
@@ -1108,37 +1160,40 @@ static NSString *const ATLDefaultPushAlertText = @"sent you a message.";
         return;
     }
     
-    dispatch_suspend(self.animationQueue);
     // Prevent scrolling if user has scrolled up into the conversation history.
     BOOL shouldScrollToBottom = [self shouldScrollToBottom];
-    [self.collectionView performBatchUpdates:^{
-        for (ATLDataSourceChange *change in self.objectChanges) {
-            switch (change.type) {
-                case LYRQueryControllerChangeTypeInsert:
-                    [self.collectionView insertSections:[NSIndexSet indexSetWithIndex:change.newIndex]];
-                    break;
-                    
-                case LYRQueryControllerChangeTypeMove:
-                    [self.collectionView moveSection:change.currentIndex toSection:change.newIndex];
-                    break;
-                    
-                case LYRQueryControllerChangeTypeDelete:
-                    [self.collectionView deleteSections:[NSIndexSet indexSetWithIndex:change.currentIndex]];
-                    break;
-                    
-                case LYRQueryControllerChangeTypeUpdate:
-                    // If we call reloadSections: for a section that is already being animated due to another move (e.g. moving section 17 to 16 causes section 16 to be moved/animated to 17 and then we also reload section 16), UICollectionView will throw an exception. But since all onscreen sections will be reconfigured (see below) we don't need to reload the sections here anyway.
-                    break;
-                    
-                default:
-                    break;
-            }
-        }
-        [self.objectChanges removeAllObjects];
-    } completion:^(BOOL finished) {
-        dispatch_resume(self.animationQueue);
-    }];
     
+    // ensure the animation's queue will resume
+    if (self.collectionView) {
+        dispatch_suspend(self.animationQueue);
+        [self.collectionView performBatchUpdates:^{
+            for (ATLDataSourceChange *change in self.objectChanges) {
+                switch (change.type) {
+                    case LYRQueryControllerChangeTypeInsert:
+                        [self.collectionView insertSections:[NSIndexSet indexSetWithIndex:change.newIndex]];
+                        break;
+                        
+                    case LYRQueryControllerChangeTypeMove:
+                        [self.collectionView moveSection:change.currentIndex toSection:change.newIndex];
+                        break;
+                        
+                    case LYRQueryControllerChangeTypeDelete:
+                        [self.collectionView deleteSections:[NSIndexSet indexSetWithIndex:change.currentIndex]];
+                        break;
+                        
+                    case LYRQueryControllerChangeTypeUpdate:
+                        // If we call reloadSections: for a section that is already being animated due to another move (e.g. moving section 17 to 16 causes section 16 to be moved/animated to 17 and then we also reload section 16), UICollectionView will throw an exception. But since all onscreen sections will be reconfigured (see below) we don't need to reload the sections here anyway.
+                        break;
+                        
+                    default:
+                        break;
+                }
+            }
+            [self.objectChanges removeAllObjects];
+        } completion:^(BOOL finished) {
+            dispatch_resume(self.animationQueue);
+        }];
+    }    
     [self configureCollectionViewElements];
     
     if (shouldScrollToBottom)  {
@@ -1175,6 +1230,35 @@ static NSString *const ATLDefaultPushAlertText = @"sent you a message.";
     }
 }
 
+- (void)configureCollectionViewElementsAtCollectionViewIndexPath:(NSIndexPath *)collectionViewIndexPath {
+    // Direct access to the message
+    LYRMessage *message = [self.conversationDataSource messageAtCollectionViewIndexPath:collectionViewIndexPath];
+    UICollectionViewCell *cell = [self.collectionView cellForItemAtIndexPath:collectionViewIndexPath];
+    if ([cell conformsToProtocol:@protocol(ATLMessagePresenting)]) {
+        [self configureCell:(UICollectionViewCell<ATLMessagePresenting> *)cell forMessage:message indexPath:collectionViewIndexPath];
+    }
+
+    // Find the header...
+    for (ATLConversationCollectionViewHeader *header in self.sectionHeaders) {
+        NSIndexPath *queryControllerIndexPath = [self.conversationDataSource.queryController indexPathForObject:header.message];
+        if (queryControllerIndexPath && [header.message.identifier isEqual:message.identifier]) {
+            NSIndexPath *collectionViewIndexPath = [self.conversationDataSource collectionViewIndexPathForQueryControllerIndexPath:queryControllerIndexPath];
+            [self configureHeader:header atIndexPath:collectionViewIndexPath];
+            break;
+        }
+    }
+
+    // ...and the footer
+    for (ATLConversationCollectionViewFooter *footer in self.sectionFooters) {
+        NSIndexPath *queryControllerIndexPath = [self.conversationDataSource.queryController indexPathForObject:footer.message];
+        if (queryControllerIndexPath && [footer.message.identifier isEqual:message.identifier]) {
+            NSIndexPath *collectionViewIndexPath = [self.conversationDataSource collectionViewIndexPathForQueryControllerIndexPath:queryControllerIndexPath];
+            [self configureFooter:footer atIndexPath:collectionViewIndexPath];
+            break;
+        }
+    }
+}
+
 #pragma mark - Helpers
 
 - (LYRConversation *)existingConversationWithParticipantIdentifiers:(NSSet *)participantIdentifiers
@@ -1200,8 +1284,13 @@ static NSString *const ATLDefaultPushAlertText = @"sent you a message.";
 
 - (NSString *)participantNameForMessage:(LYRMessage *)message
 {
-    id<ATLParticipant> participant = [self participantForIdentifier:message.sender.userID];
-    NSString *participantName = participant.fullName ?: @"Unknown User";
+    NSString *participantName;
+    if (message.sender.userID) {
+        id<ATLParticipant> participant = [self participantForIdentifier:message.sender.userID];
+        participantName = participant.fullName ?: @"Unknown User";
+    } else {
+        participantName = message.sender.name;
+    }
     return participantName;
 }
 

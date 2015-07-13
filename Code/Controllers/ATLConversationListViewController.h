@@ -126,6 +126,23 @@
  */
 - (NSString *)conversationListViewController:(ATLConversationListViewController *)conversationListViewController lastMessageTextForConversation:(LYRConversation *)conversation;
 
+/**
+ @abstract Asks the data source to configure the query used to fetch content for the controller if necessary.
+ @discussion The `LYRConversationListViewController` uses the following default query:
+ 
+     LYRQuery *query = [LYRQuery queryWithQueryableClass:[LYRConversation class]];
+     query.predicate = [LYRPredicate predicateWithProperty:@"participants" predicateOperator:LYRPredicateOperatorIsIn value:self.layerClient.authenticatedUserID];
+     query.sortDescriptors = @[[NSSortDescriptor sortDescriptorWithKey:@"lastMessage.receivedAt" ascending:NO]];
+ 
+ Applications that require advanced query configuration can do so by implementing this data source method.
+ 
+ @param viewController The `ATLConversationViewController` requesting the configuration.
+ @param defaultQuery An `LYRQuery` object with the default configuration for the controller.
+ @return An `LYRQuery` object with any additional configuration.
+@raises `NSInvalidArgumentException` if an `LYRQuery` object is not returned.
+ */
+- (LYRQuery *)conversationListViewController:(ATLConversationListViewController *)viewController willLoadWithQuery:(LYRQuery *)defaultQuery;
+
 @end
 
 /**
@@ -144,6 +161,13 @@
  @return An `LYRConversationListViewController` object.
  */
 + (instancetype)conversationListViewControllerWithLayerClient:(LYRClient *)layerClient;
+
+/**
+ @abstract Initializes a new `ATLConversationListViewController` object with the given `LYRClient` object.
+ @param layerClient The `LYRClient` object from which conversations will be fetched for display.
+ @return An `LYRConversationListViewController` object initialized with the given `LYRClient` object.
+ */
+- (instancetype)initWithLayerClient:(LYRClient *)layerClient;
 
 ///-------------------------------------------------------
 /// @name Configuring Layer Client, Delegate & Data Source
